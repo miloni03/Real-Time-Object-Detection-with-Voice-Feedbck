@@ -1,0 +1,111 @@
+<!DOCTYPE html>
+<html>
+<head>
+  <title>Google Maps API - Get Walking Directions with Voice</title>
+  <meta name="viewport" content="initial-scale=1.0">
+  <meta charset="utf-8">
+  <style>
+    #map {
+      height: 100%;
+    }
+    html, body {
+      height: 100%;
+      margin: 0;
+      padding: 0;
+    }
+    #origin, #destination {
+      width: 50%;
+      margin-bottom: 10px;
+    }
+  </style>
+</head>
+<body>
+  <div>
+    <label for="origin">Origin:</label>
+    <input type="text" id="origin" name="origin" required>
+    <br>
+    <label for="destination">Destination:</label>
+    <input type="text" id="destination" name="destination" required>
+    <br>
+    <a href="#" onclick="getDirections()">Get Directions</a>
+  </div>
+  <div id="map"></div>
+
+  <script>
+    let map;
+    let directionsService;
+    let directionsRenderer;
+    let speechOutput = new SpeechSynthesisUtterance();
+    let currentPositionMarker;
+
+    function initMap() {
+      map = new google.maps.Map(document.getElementById("map"), {
+        center: { lat: 37.7749, lng: -122.4194 },
+        zoom: 13,
+      });
+      directionsService = new google.maps.DirectionsService();
+      directionsRenderer = new google.maps.DirectionsRenderer({
+        map: map,
+      });
+      const originInput = document.getElementById("origin");
+      const destinationInput = document.getElementById("destination");
+      const originAutocomplete = new google.maps.places.Autocomplete(originInput);
+      const destinationAutocomplete = new google.maps.places.Autocomplete(destinationInput);
+      originAutocomplete.setFields(["place_id"]);
+      destinationAutocomplete.setFields(["place_id"]);
+    }
+    
+    function getDirections() {
+      const origin = document.getElementById("origin").value;
+      const destination = document.getElementById("destination").value;
+      const request = {
+        origin: origin,
+        destination: destination,
+        travelMode: google.maps.TravelMode.WALKING,
+      };
+      directionsService.route(request, function (result, status) {
+        if (status == "OK") {
+          directionsRenderer.setDirections(result);
+          let steps = result.routes[0].legs[0].steps;
+          let totalDistance = result.routes[0].legs[0].distance.text;
+          let spokenDirections =  " ";
+          let nextStepDistance = 0;
+          let previousDistance = 0;
+          let currentStepIndex = 0; // Keep track of the current step
+
+          for (let i = 0; i < steps.length; i++) {
+            let currentStep = steps[i];
+            let distance = currentStep.distance.value;
+            let currentStepDirections = currentStep.instructions.replace(/(<([^>]+)>)/gi, "");
+            if (distance >= nextStepDistance || currentStepDirections.includes("turn")) {
+              spokenDirections +=  "Turn left after 20metres . Turn right after 350 metres.";
+              setTimeout(function () {
+                speechOutput.text = currentStepDirections; // Set the speech output to the current step directions
+                window.speechSynthesis.speak(speechOutput);
+                spokenDirections = ""; // Reset the spokenDirections string for the next sentence
+                currentStepIndex++; // Move to the next step
+              }, i * 2000);
+              previousDistance = nextStepDistance;
+              nextStepDistance = distance + 50;
+            }
+          }
+          spokenDirections += "You have arrived at your destination. The total distance is " + totalDistance;
+          speechOutput.text = spokenDirections;
+          window.speechSynthesis.speak(speechOutput);
+        } else {
+          alert("Directions request failed due to " + status);
+        }
+      });
+    }
+  </script>
+  <script src="https://maps.googleapis.com/maps/api/js?key=AIzaSyAQ4UT_LR14xolf8B2ILhi33d5CeDJLZrA&libraries=places&callback=initMap"
+  async defer></script>
+</body>
+</html>
+
+
+  
+ 
+
+
+  AIzaSyAQ4UT_LR14xolf8B2ILhi33d5CeDJLZrA
